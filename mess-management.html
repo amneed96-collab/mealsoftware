@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>মেস ব্যবস্থাপনা খাতা</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2a2118; --ink-soft:#5a4d3c;
+    --paper:#f1ead9; --paper-deep:#e8dfc9; --paper-line:#cabf9e;
+    --cover:#7a2e2e; --cover-dark:#54201f;
+    --gold:#a9822f;
+    --ledger-blue:#374a63; --ledger-blue-deep:#2a3a4f;
+    --good:#3f6b4a; --bad:#a5402f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Hind Siliguri',sans-serif;color:var(--ink);background:var(--paper-deep);min-height:100vh;}
+  h1,h2,h3,.serif{font-family:'Tiro Bangla',serif;font-weight:400;}
+  header{background:var(--cover);color:#f1ead9;padding:20px 20px 24px;border-bottom:4px solid var(--gold);}
+  header h1{margin:0;font-size:1.5rem;}
+  header p{margin:4px 0 0;font-size:.82rem;color:#d9c9a8;}
+  .setup-warn{background:#3a1414;color:#f3d9c9;padding:10px 16px;font-size:.85rem;border-bottom:2px solid var(--gold);}
+  .setup-warn code{background:rgba(255,255,255,.12);padding:2px 6px;border-radius:3px;}
+  nav.tabs{display:flex;gap:4px;padding:0 10px;background:var(--cover-dark);overflow-x:auto;}
+  nav.tabs button{font-family:'Hind Siliguri',sans-serif;font-size:.9rem;border:none;cursor:pointer;padding:11px 16px 10px;background:transparent;color:#e6d9bc;border-radius:8px 8px 0 0;white-space:nowrap;}
+  nav.tabs button.active{background:var(--paper);color:var(--cover-dark);font-weight:600;}
+  nav.tabs button:not(.active):hover{background:rgba(255,255,255,.08);}
+  main{max-width:1100px;margin:0 auto;padding:22px 14px 60px;}
+  .sheet{background:var(--paper);background-image:repeating-linear-gradient(to bottom,transparent,transparent 37px,var(--paper-line) 38px);border-top:3px solid var(--gold);box-shadow:0 8px 22px rgba(42,33,24,.18);padding:20px 18px 8px;border-radius:0 6px 6px 6px;}
+  .sheet-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .sheet-title h2{margin:0;font-size:1.3rem;color:var(--cover-dark);}
+  .muted{color:var(--ink-soft);font-size:.85rem;}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;}
+  .tile{background:var(--paper);border-left:5px solid var(--gold);padding:12px 12px 10px;box-shadow:0 2px 6px rgba(42,33,24,.12);}
+  .tile.blue{border-left-color:var(--ledger-blue);} .tile.good{border-left-color:var(--good);}
+  .tile .num{font-family:'Tiro Bangla',serif;font-size:1.7rem;line-height:1;display:block;}
+  .tile .label{font-size:.78rem;color:var(--ink-soft);margin-top:6px;display:block;}
+  .toggle-btn{background:var(--ledger-blue);color:#fff;border:none;padding:10px 20px;border-radius:3px;cursor:pointer;font-size:.9rem;margin-bottom:16px;font-family:'Hind Siliguri',sans-serif;}
+  .toggle-btn:hover{background:var(--ledger-blue-deep);}
+  .toggle-btn.open{background:var(--cover-dark);}
+  form.entry{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px 16px;padding-bottom:16px;border-bottom:1px dashed var(--paper-line);margin-bottom:18px;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:.8rem;color:var(--ink-soft);}
+  .field input,.field select,.field textarea{font-family:'Hind Siliguri',sans-serif;font-size:1rem;background:transparent;border:none;border-bottom:2px solid var(--paper-line);padding:6px 2px;color:var(--ink);outline:none;}
+  .field textarea{resize:vertical;min-height:40px;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-bottom-color:var(--gold);}
+  .field img.avatar-preview{width:52px;height:52px;border-radius:50%;object-fit:cover;margin-top:4px;border:1px solid var(--paper-line);}
+  .form-actions{grid-column:1/-1;display:flex;gap:10px;align-items:center;}
+  button.primary{font-family:'Hind Siliguri',sans-serif;background:var(--cover);color:#f1ead9;border:none;padding:10px 22px;font-size:.95rem;cursor:pointer;border-radius:3px;}
+  button.primary:hover{background:var(--cover-dark);}
+  button.ghost{font-family:'Hind Siliguri',sans-serif;background:transparent;color:var(--ink-soft);border:1px solid var(--paper-line);padding:9px 16px;font-size:.9rem;cursor:pointer;border-radius:3px;}
+  .search-box input{width:100%;max-width:280px;font-family:'Hind Siliguri',sans-serif;font-size:.92rem;background:transparent;border:none;border-bottom:2px solid var(--paper-line);padding:6px 2px;outline:none;margin-bottom:14px;}
+  .table-wrap{overflow-x:auto;margin-bottom:20px;}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:560px;}
+  thead th{background:var(--ledger-blue);color:#f1ead9;text-align:left;padding:8px 9px;font-weight:600;font-size:.8rem;}
+  tbody td{padding:8px 9px;border-bottom:1px solid var(--paper-line);vertical-align:middle;}
+  tbody tr:nth-child(even){background:rgba(0,0,0,.02);}
+  td.serial,.amount{font-family:'Tiro Bangla',serif;}
+  td.serial{color:var(--gold);font-weight:600;width:1%;}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .row-actions button{background:none;border:none;cursor:pointer;color:var(--ledger-blue);font-size:.82rem;text-decoration:underline;padding:0;font-family:'Hind Siliguri',sans-serif;}
+  .row-actions button.del{color:var(--bad);}
+  .badge{display:inline-block;padding:2px 9px;font-size:.76rem;border:1px solid currentColor;border-radius:12px;}
+  .badge.student{color:var(--ledger-blue);} .badge.teacher{color:var(--good);} .badge.member{color:var(--gold);}
+  .empty{text-align:center;padding:26px 10px;color:var(--ink-soft);font-size:.9rem;}
+  .recent-list{list-style:none;padding:0;margin:0 0 20px;}
+  .recent-list li{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--paper-line);font-size:.9rem;}
+  .avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid var(--paper-line);vertical-align:middle;}
+  .avatar-ph{width:30px;height:30px;border-radius:50%;background:var(--ledger-blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;vertical-align:middle;}
+  .meal-input{width:56px;}
+  .report-type-toggle{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .report-type-toggle button{padding:8px 16px;border:1px solid var(--paper-line);background:transparent;cursor:pointer;border-radius:3px;font-family:'Hind Siliguri',sans-serif;}
+  .report-type-toggle button.active{background:var(--cover);color:#fff;border-color:var(--cover);}
+  .card-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+  .card-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(0,0,0,.02);border-left:4px solid var(--gold);flex-wrap:wrap;gap:8px;}
+  .card-item .actions{display:flex;gap:12px;}
+  .member-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .member-header img,.member-header .avatar-ph{width:44px;height:44px;font-size:1rem;}
+  .print-note{font-size:.78rem;color:var(--ink-soft);margin-bottom:10px;}
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea,#printArea *{visibility:visible;}
+    #printArea{display:block;position:absolute;left:0;top:0;width:100%;padding:10px;}
+  }
+  @media (max-width:480px){ header h1{font-size:1.25rem;} .sheet{padding:15px 10px 6px;} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="serif">মেস ব্যবস্থাপনা খাতা</h1>
+  <p>সদস্য, জমা ও মিলের হিসাব একসাথে</p>
+</header>
+<div class="setup-warn" id="setupWarn" style="display:none;">
+  ⚠ প্রথমে সেটআপ শেষ করুন: এই ফাইলের নিচের দিকে <code>CONFIG.API_URL</code> এ আপনার Google Apps Script Web App লিংক বসান। বিস্তারিত নির্দেশনা ফাইলের শেষে কমেন্টে দেওয়া আছে।
+</div>
+
+<nav class="tabs">
+  <button data-tab="dashboard" class="active">ড্যাশবোর্ড</button>
+  <button data-tab="members">সদস্য</button>
+  <button data-tab="deposits">জমা</button>
+  <button data-tab="meals">মিল এন্ট্রি</button>
+  <button data-tab="dailylist">দৈনিক মেনু তালিকা</button>
+  <button data-tab="report">রিপোর্ট</button>
+</nav>
+
+<main>
+  <div class="sheet" id="sheet"></div>
+</main>
+
+<div id="printArea"></div>
+
+<script>
+/* ======================= কনফিগারেশন ======================= */
+const CONFIG = {
+  // এখানে আপনার Google Apps Script Web App ডিপ্লয়মেন্ট URL বসান (Code.gs ডিপ্লয় করার পর যেটা পাবেন)
+  API_URL: "https://script.google.com/macros/s/AKfycbwH1JV9mwgcrUpNs8t1mHZscHGNS2-v_AfwYw-EXBJWLozlVRHNOjU1IfwblvtmjEg/exec"   // উদাহরণ: "https://script.google.com/macros/s/AKfycb.../exec"
+};
+
+/* ======================= হেল্পার ======================= */
+const BN_DIGITS = ['০','১','২','৩','৪','৫','৬','৭','৮','৯'];
+function toBn(n){ return String(n).replace(/[0-9]/g, d => BN_DIGITS[+d]); }
+function fmtMoney(n){ n = Number(n)||0; return '৳' + toBn(n.toLocaleString('en-IN')); }
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d)) return iso;
+  return toBn(d.getDate())+'/'+toBn(d.getMonth()+1)+'/'+toBn(d.getFullYear());
+}
+const BN_MONTHS = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+function todayIso(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function daysInMonth(m,y){ return new Date(y, m+1, 0).getDate(); }
+function avatarHtml(member, size){
+  size = size || 30;
+  if(member && member.ছবি){ return `<img src="${member.ছবি}" class="avatar" style="width:${size}px;height:${size}px;">`; }
+  const initial = member && member.নাম ? member.নাম.charAt(0) : '?';
+  return `<span class="avatar-ph" style="width:${size}px;height:${size}px;">${initial}</span>`;
+}
+function typeBadge(type){
+  const cls = type==='ছাত্র'?'student':(type==='শিক্ষক'?'teacher':'member');
+  return `<span class="badge ${cls}">${type}</span>`;
+}
+function resizeImageToDataUrl(file, maxDim){
+  maxDim = maxDim || 120;
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxDim){ h = h*maxDim/w; w = maxDim; } }
+        else { if(h > maxDim){ w = w*maxDim/h; h = maxDim; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function doPrint(html){
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+
+/* ======================= API ======================= */
+async function apiGet(params){
+  const url = CONFIG.API_URL + '?' + new URLSearchParams(params).toString();
+  const res = await fetch(url);
+  return res.json();
+}
+async function apiPost(payload){
+  const res = await fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+/* ======================= স্টেট ======================= */
+let members = [], deposits = [], mealEntries = [];
+let menuItems = [], dailyMenus = [];
+let currentTab = 'dashboard';
+let editingMemberId=null, editingDepositId=null, editingMealDate=null, editingMenuId=null;
+let showMemberForm=false, showDepositForm=false, showMealForm=false, showDailyForm=false, showReportForm=true, showMenuForm=false;
+let memberSearch='';
+let dailyLists = []; // { id, month, year } — সেশনে তৈরি করা দৈনিক মেনু তালিকার তালিকা
+let reportType = 'member';
+let pendingMemberPhoto = null;
+let pendingMenuPhoto = null;
+
+async function loadAll(){
+  if(!CONFIG.API_URL){
+    document.getElementById('setupWarn').style.display='block';
+    render();
+    return;
+  }
+  try{
+    const data = await apiGet({action:'getAll'});
+    members = data.members || [];
+    deposits = data.deposits || [];
+    mealEntries = data.meals || [];
+    menuItems = data.menuItems || [];
+    dailyMenus = data.dailyMenus || [];
+  }catch(err){
+    alert('তথ্য লোড করতে সমস্যা হয়েছে। ইন্টারনেট সংযোগ ও API লিংক পরীক্ষা করুন।\n' + err.message);
+  }
+  render();
+}
+
+/* ======================= ট্যাব ======================= */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    editingMemberId=null; editingDepositId=null; editingMealDate=null; editingMenuId=null;
+    render();
+  });
+});
+
+function render(){
+  if(currentTab==='dashboard') renderDashboard();
+  else if(currentTab==='members') renderMembers();
+  else if(currentTab==='deposits') renderDeposits();
+  else if(currentTab==='meals') renderMeals();
+  else if(currentTab==='dailylist') renderDailyList();
+  else renderReport();
+}
+
+/* ======================= ড্যাশবোর্ড ======================= */
+function renderDashboard(){
+  const sheet = document.getElementById('sheet');
+  const now = new Date();
+  const totalMembers = members.length;
+  const students = members.filter(m=>m.ধরন==='ছাত্র').length;
+  const teachers = members.filter(m=>m.ধরন==='শিক্ষক').length;
+  const thisMonthDeposit = deposits
+    .filter(d=> Number(d.ভাড়ার_মাস)===now.getMonth() && Number(d.ভাড়ার_বছর)===now.getFullYear())
+    .reduce((s,d)=> s + (Number(d.ভাড়ার_পরিমাণ)||0) + (Number(d.ভর্তি_ফি)||0), 0);
+  const grandTotal = deposits.reduce((s,d)=> s + (Number(d.ভর্তি_ফি)||0) + (Number(d.ভাড়ার_পরিমাণ)||0), 0);
+  const thisMonthMeals = mealEntries.filter(e=>{
+    const d = new Date(e.date+'T00:00:00'); return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  }).reduce((s,e)=> s + Object.values(e.meals||{}).reduce((s2,m)=> s2+(Number(m['মোট'])||0),0), 0);
+
+  const recent = [...deposits].sort((a,b)=>(b.তারিখ||'').localeCompare(a.তারিখ||'')).slice(0,5);
+
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">সারসংক্ষেপ</h2><span class="muted">${BN_MONTHS[now.getMonth()]} ${toBn(now.getFullYear())}</span></div>
+    <div class="tiles">
+      <div class="tile"><span class="num">${toBn(totalMembers)}</span><span class="label">মোট সদস্য</span></div>
+      <div class="tile blue"><span class="num">${toBn(students)}</span><span class="label">ছাত্র</span></div>
+      <div class="tile blue"><span class="num">${toBn(teachers)}</span><span class="label">শিক্ষক</span></div>
+      <div class="tile good"><span class="num">${fmtMoney(thisMonthDeposit)}</span><span class="label">এই মাসের আদায়</span></div>
+      <div class="tile"><span class="num">${fmtMoney(grandTotal)}</span><span class="label">সর্বমোট আদায়</span></div>
+      <div class="tile blue"><span class="num">${toBn(thisMonthMeals)}</span><span class="label">এই মাসের মোট মিল</span></div>
+    </div>
+    <h3 class="serif" style="margin-bottom:8px;">সাম্প্রতিক জমা</h3>
+    ${recent.length ? `<ul class="recent-list">${recent.map(d=>{
+      const mem = members.find(m=>m.ID===d.সদস্য_আইডি);
+      const total = (Number(d.ভর্তি_ফি)||0)+(Number(d.ভাড়ার_পরিমাণ)||0);
+      return `<li><span>${mem?mem.নাম:'অজানা'} <div class="muted">${BN_MONTHS[d.ভাড়ার_মাস]} ${toBn(d.ভাড়ার_বছর)} · ${fmtDate(d.তারিখ)}</div></span><span class="amount serif">${fmtMoney(total)}</span></li>`;
+    }).join('')}</ul>` : `<div class="empty">এখনো কোনো জমা রেকর্ড নেই।</div>`}
+  `;
+}
+
+/* ======================= সদস্য ======================= */
+function renderMembers(){
+  const sheet = document.getElementById('sheet');
+  const editing = editingMemberId ? members.find(m=>m.ID===editingMemberId) : null;
+
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">সদস্য</h2><span class="muted">মোট ${toBn(members.length)} জন</span></div>
+    <button class="toggle-btn ${showMemberForm?'open':''}" id="btnToggleMemberForm">${showMemberForm ? 'ফরম বন্ধ করুন' : (editing ? 'সম্পাদনা ফরম খুলুন' : '+ নতুন সদস্য যুক্ত করুন')}</button>
+    <div id="memberFormWrap"></div>
+    <div class="search-box"><input type="text" id="memberSearchInput" placeholder="নাম বা মোবাইল দিয়ে খুঁজুন..." value="${memberSearch}"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ক্রম</th><th>ছবি</th><th>নাম</th><th>মোবাইল</th><th>ধরন</th><th>ক্লাস</th><th>তারিখ</th><th>ঠিকানা</th><th></th></tr></thead>
+        <tbody id="memberRows"></tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('btnToggleMemberForm').addEventListener('click', ()=>{
+    showMemberForm = !showMemberForm;
+    if(!showMemberForm) editingMemberId = null;
+    renderMembers();
+  });
+  document.getElementById('memberSearchInput').addEventListener('input', (e)=>{ memberSearch=e.target.value; renderMemberRows(); });
+
+  if(showMemberForm) renderMemberFormInner(editing);
+  renderMemberRows();
+}
+
+function renderMemberFormInner(editing){
+  pendingMemberPhoto = null;
+  const wrap = document.getElementById('memberFormWrap');
+  wrap.innerHTML = `
+    <form class="entry" id="memberForm">
+      <div class="field"><label>নাম</label><input type="text" name="নাম" required value="${editing?editing.নাম:''}"></div>
+      <div class="field"><label>মোবাইল নং</label><input type="tel" name="মোবাইল" required value="${editing?editing.মোবাইল:''}"></div>
+      <div class="field">
+        <label>ধরন</label>
+        <select name="ধরন" id="typeSelect">
+          <option value="সদস্য" ${editing&&editing.ধরন==='সদস্য'?'selected':''}>সদস্য</option>
+          <option value="ছাত্র" ${editing&&editing.ধরন==='ছাত্র'?'selected':''}>ছাত্র</option>
+          <option value="শিক্ষক" ${editing&&editing.ধরন==='শিক্ষক'?'selected':''}>শিক্ষক</option>
+        </select>
+      </div>
+      <div class="field" id="classField" style="display:${editing&&editing.ধরন==='ছাত্র'?'flex':'none'};">
+        <label>ক্লাস</label><input type="text" name="ক্লাস" value="${editing&&editing.ক্লাস?editing.ক্লাস:''}">
+      </div>
+      <div class="field"><label>তারিখ</label><input type="date" name="তারিখ" required value="${editing?editing.তারিখ:todayIso()}"></div>
+      <div class="field"><label>ছবি</label>
+        <input type="file" accept="image/*" id="photoInput">
+        <img id="photoPreview" class="avatar-preview" style="${editing&&editing.ছবি?'':'display:none;'}" src="${editing&&editing.ছবি?editing.ছবি:''}">
+      </div>
+      <div class="field full"><label>ঠিকানা</label><textarea name="ঠিকানা">${editing?editing.ঠিকানা||'':''}</textarea></div>
+      <div class="form-actions">
+        <button type="submit" class="primary">${editing?'হালনাগাদ করুন':'সংরক্ষণ করুন'}</button>
+        <button type="button" class="ghost" id="cancelMemberForm">বাতিল</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('typeSelect').addEventListener('change',(e)=>{
+    document.getElementById('classField').style.display = e.target.value==='ছাত্র' ? 'flex' : 'none';
+  });
+  document.getElementById('cancelMemberForm').addEventListener('click', ()=>{
+    showMemberForm=false; editingMemberId=null; renderMembers();
+  });
+  document.getElementById('photoInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const dataUrl = await resizeImageToDataUrl(file, 120);
+    pendingMemberPhoto = dataUrl;
+    const preview = document.getElementById('photoPreview');
+    preview.src = dataUrl; preview.style.display='block';
+  });
+  document.getElementById('memberForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const type = fd.get('ধরন');
+    const data = {
+      ID: editing ? editing.ID : 'm'+Date.now(),
+      নাম: fd.get('নাম').trim(),
+      মোবাইল: fd.get('মোবাইল').trim(),
+      ধরন: type,
+      ক্লাস: type==='ছাত্র' ? (fd.get('ক্লাস')||'').trim() : '',
+      তারিখ: fd.get('তারিখ'),
+      ঠিকানা: (fd.get('ঠিকানা')||'').trim(),
+      ছবি: pendingMemberPhoto || (editing ? editing.ছবি||'' : '')
+    };
+    await apiPost({action:'saveMember', data});
+    const idx = members.findIndex(m=>m.ID===data.ID);
+    if(idx>-1) members[idx]=data; else members.push(data);
+    showMemberForm=false; editingMemberId=null;
+    renderMembers();
+  });
+}
+
+function renderMemberRows(){
+  const tbody = document.getElementById('memberRows');
+  if(!tbody) return;
+  const q = memberSearch.trim().toLowerCase();
+  const filtered = members.filter(m=> !q || m.নাম.toLowerCase().includes(q) || String(m.মোবাইল).includes(q));
+  if(!filtered.length){ tbody.innerHTML = `<tr><td colspan="9"><div class="empty">কোনো সদস্য পাওয়া যায়নি।</div></td></tr>`; return; }
+  tbody.innerHTML = filtered.map(m=>{
+    const serial = members.findIndex(x=>x.ID===m.ID)+1;
+    return `<tr>
+      <td class="serial">${toBn(serial)}</td>
+      <td>${avatarHtml(m)}</td>
+      <td>${m.নাম}</td><td>${m.মোবাইল}</td><td>${typeBadge(m.ধরন)}</td>
+      <td>${m.ক্লাস||'—'}</td><td>${fmtDate(m.তারিখ)}</td><td>${m.ঠিকানা||'—'}</td>
+      <td><div class="row-actions">
+        <button data-edit="${m.ID}">সম্পাদনা</button>
+        <button data-del="${m.ID}" class="del">মুছুন</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
+    editingMemberId=b.dataset.edit; showMemberForm=true; renderMembers(); window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(confirm('এই সদস্যকে মুছে ফেলতে চান?')){
+      await apiPost({action:'deleteMember', id:b.dataset.del});
+      members = members.filter(m=>m.ID!==b.dataset.del);
+      renderMembers();
+    }
+  }));
+}
+
+/* ======================= জমা ======================= */
+function renderDeposits(){
+  const sheet = document.getElementById('sheet');
+  const editing = editingDepositId ? deposits.find(d=>d.ID===editingDepositId) : null;
+
+  if(!members.length){
+    sheet.innerHTML = `<div class="sheet-title"><h2 class="serif">জমা</h2></div><div class="empty">জমা যুক্ত করার আগে অন্তত একজন সদস্য যুক্ত করুন।</div>`;
+    return;
+  }
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">জমা</h2><span class="muted">মোট ${toBn(deposits.length)} টি এন্ট্রি</span></div>
+    <button class="toggle-btn ${showDepositForm?'open':''}" id="btnToggleDepositForm">${showDepositForm?'ফরম বন্ধ করুন':(editing?'সম্পাদনা ফরম খুলুন':'+ নতুন জমা যুক্ত করুন')}</button>
+    <div id="depositFormWrap"></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ক্রম</th><th>সদস্য</th><th>ভর্তি ফি</th><th>ভাড়ার মাস</th><th>ভাড়ার পরিমাণ</th><th>মোট</th><th>তারিখ</th><th></th></tr></thead>
+      <tbody id="depositRows"></tbody>
+    </table></div>
+  `;
+  document.getElementById('btnToggleDepositForm').addEventListener('click', ()=>{
+    showDepositForm=!showDepositForm; if(!showDepositForm) editingDepositId=null; renderDeposits();
+  });
+  if(showDepositForm) renderDepositFormInner(editing);
+  renderDepositRows();
+}
+
+function renderDepositFormInner(editing){
+  const now = new Date();
+  const wrap = document.getElementById('depositFormWrap');
+  wrap.innerHTML = `
+    <form class="entry" id="depositForm">
+      <div class="field full"><label>সদস্য</label>
+        <select name="সদস্য_আইডি" required>
+          <option value="">নির্বাচন করুন</option>
+          ${members.map(m=>`<option value="${m.ID}" ${editing&&editing.সদস্য_আইডি===m.ID?'selected':''}>${m.নাম} — ${m.মোবাইল}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>ভর্তি ফি</label><input type="number" min="0" name="ভর্তি_ফি" value="${editing?editing.ভর্তি_ফি:0}"></div>
+      <div class="field"><label>মাসিক ভাড়ার মাস</label>
+        <select name="ভাড়ার_মাস">${BN_MONTHS.map((mn,i)=>`<option value="${i}" ${editing?(Number(editing.ভাড়ার_মাস)===i?'selected':''):(now.getMonth()===i?'selected':'')}>${mn}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>বছর</label><input type="number" name="ভাড়ার_বছর" value="${editing?editing.ভাড়ার_বছর:now.getFullYear()}"></div>
+      <div class="field"><label>মাসিক ভাড়ার পরিমাণ</label><input type="number" min="0" name="ভাড়ার_পরিমাণ" value="${editing?editing.ভাড়ার_পরিমাণ:''}"></div>
+      <div class="field"><label>তারিখ</label><input type="date" name="তারিখ" required value="${editing?editing.তারিখ:todayIso()}"></div>
+      <div class="form-actions">
+        <button type="submit" class="primary">${editing?'হালনাগাদ করুন':'জমা করুন'}</button>
+        <button type="button" class="ghost" id="cancelDepositForm">বাতিল</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('cancelDepositForm').addEventListener('click', ()=>{ showDepositForm=false; editingDepositId=null; renderDeposits(); });
+  document.getElementById('depositForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const mid = fd.get('সদস্য_আইডি');
+    if(!mid){ alert('সদস্য নির্বাচন করুন।'); return; }
+    const data = {
+      ID: editing ? editing.ID : 'd'+Date.now(),
+      সদস্য_আইডি: mid,
+      ভর্তি_ফি: Number(fd.get('ভর্তি_ফি'))||0,
+      ভাড়ার_মাস: Number(fd.get('ভাড়ার_মাস')),
+      ভাড়ার_বছর: Number(fd.get('ভাড়ার_বছর')),
+      ভাড়ার_পরিমাণ: Number(fd.get('ভাড়ার_পরিমাণ'))||0,
+      তারিখ: fd.get('তারিখ')
+    };
+    await apiPost({action:'saveDeposit', data});
+    const idx = deposits.findIndex(d=>d.ID===data.ID);
+    if(idx>-1) deposits[idx]=data; else deposits.push(data);
+    showDepositForm=false; editingDepositId=null;
+    renderDeposits();
+  });
+}
+
+function renderDepositRows(){
+  const tbody = document.getElementById('depositRows');
+  if(!tbody) return;
+  const sorted = [...deposits].sort((a,b)=>(b.তারিখ||'').localeCompare(a.তারিখ||''));
+  if(!sorted.length){ tbody.innerHTML = `<tr><td colspan="8"><div class="empty">এখনো কোনো জমা যুক্ত হয়নি।</div></td></tr>`; return; }
+  tbody.innerHTML = sorted.map((d,i)=>{
+    const mem = members.find(m=>m.ID===d.সদস্য_আইডি);
+    const total = (Number(d.ভর্তি_ফি)||0)+(Number(d.ভাড়ার_পরিমাণ)||0);
+    return `<tr>
+      <td class="serial">${toBn(sorted.length-i)}</td><td>${mem?mem.নাম:'অজানা'}</td>
+      <td class="amount">${fmtMoney(d.ভর্তি_ফি)}</td><td>${BN_MONTHS[d.ভাড়ার_মাস]} ${toBn(d.ভাড়ার_বছর)}</td>
+      <td class="amount">${fmtMoney(d.ভাড়ার_পরিমাণ)}</td><td class="amount">${fmtMoney(total)}</td><td>${fmtDate(d.তারিখ)}</td>
+      <td><div class="row-actions"><button data-edit="${d.ID}">সম্পাদনা</button><button data-del="${d.ID}" class="del">মুছুন</button></div></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
+    editingDepositId=b.dataset.edit; showDepositForm=true; renderDeposits(); window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(confirm('এই জমার তথ্য মুছে ফেলতে চান?')){
+      await apiPost({action:'deleteDeposit', id:b.dataset.del});
+      deposits = deposits.filter(d=>d.ID!==b.dataset.del);
+      renderDeposits();
+    }
+  }));
+}
+
+/* ======================= মিল এন্ট্রি ======================= */
+function renderMeals(){
+  const sheet = document.getElementById('sheet');
+  if(!members.length){
+    sheet.innerHTML = `<div class="sheet-title"><h2 class="serif">মিল এন্ট্রি</h2></div><div class="empty">মিল যুক্ত করার আগে অন্তত একজন সদস্য যুক্ত করুন।</div>`;
+    return;
+  }
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">মিল এন্ট্রি</h2><span class="muted">মোট ${toBn(mealEntries.length)} দিনের এন্ট্রি</span></div>
+    <button class="toggle-btn ${showMealForm?'open':''}" id="btnToggleMealForm">${showMealForm?'ফরম বন্ধ করুন':(editingMealDate?'সম্পাদনা ফরম খুলুন':'+ নতুন মিল এন্ট্রি')}</button>
+    <div id="mealFormWrap"></div>
+    <div class="table-wrap"><table id="mealTable"></table></div>
+  `;
+  document.getElementById('btnToggleMealForm').addEventListener('click', ()=>{
+    showMealForm=!showMealForm; if(!showMealForm) editingMealDate=null; renderMeals();
+  });
+  if(showMealForm) renderMealFormInner();
+  renderMealTable();
+}
+
+function renderMealFormInner(){
+  const existing = editingMealDate ? mealEntries.find(e=>e.date===editingMealDate) : null;
+  const wrap = document.getElementById('mealFormWrap');
+  wrap.innerHTML = `
+    <form class="entry" id="mealForm" style="grid-template-columns:1fr;">
+      <div class="field" style="max-width:220px;"><label>তারিখ</label><input type="date" name="date" required value="${existing?existing.date:todayIso()}" ${existing?'readonly':''}></div>
+      <div class="field full">
+        <div class="table-wrap"><table>
+          <thead><tr><th>সদস্য</th><th>সকাল</th><th>দুপুর</th><th>রাত</th><th>মোট</th></tr></thead>
+          <tbody>
+            ${members.map(m=>{
+              const v = existing && existing.meals[m.নাম] ? existing.meals[m.নাম] : {সকাল:0,দুপুর:0,রাত:0,মোট:0};
+              return `<tr data-member="${m.নাম}">
+                <td>${avatarHtml(m)} ${m.নাম}</td>
+                <td><input type="number" min="0" class="meal-input mi-b" value="${v['সকাল']||0}"></td>
+                <td><input type="number" min="0" class="meal-input mi-l" value="${v['দুপুর']||0}"></td>
+                <td><input type="number" min="0" class="meal-input mi-d" value="${v['রাত']||0}"></td>
+                <td class="amount mi-t">${toBn(v['মোট']||0)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary">${existing?'হালনাগাদ করুন':'সংরক্ষণ করুন'}</button>
+        <button type="button" class="ghost" id="cancelMealForm">বাতিল</button>
+      </div>
+    </form>
+  `;
+  wrap.querySelectorAll('tr[data-member]').forEach(tr=>{
+    const recompute = ()=>{
+      const b = Number(tr.querySelector('.mi-b').value)||0;
+      const l = Number(tr.querySelector('.mi-l').value)||0;
+      const d = Number(tr.querySelector('.mi-d').value)||0;
+      tr.querySelector('.mi-t').textContent = toBn(b+l+d);
+    };
+    tr.querySelectorAll('input').forEach(inp=> inp.addEventListener('input', recompute));
+  });
+  document.getElementById('cancelMealForm').addEventListener('click', ()=>{ showMealForm=false; editingMealDate=null; renderMeals(); });
+  document.getElementById('mealForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const date = fd.get('date');
+    const meals = {};
+    wrap.querySelectorAll('tr[data-member]').forEach(tr=>{
+      const name = tr.dataset.member;
+      const b = Number(tr.querySelector('.mi-b').value)||0;
+      const l = Number(tr.querySelector('.mi-l').value)||0;
+      const d = Number(tr.querySelector('.mi-d').value)||0;
+      meals[name] = { 'সকাল':b, 'দুপুর':l, 'রাত':d, 'মোট':b+l+d };
+    });
+    await apiPost({action:'saveMealEntry', date, meals});
+    const idx = mealEntries.findIndex(e2=>e2.date===date);
+    if(idx>-1) mealEntries[idx]={date,meals}; else mealEntries.push({date,meals});
+    showMealForm=false; editingMealDate=null;
+    renderMeals();
+  });
+}
+
+function renderMealTable(){
+  const table = document.getElementById('mealTable');
+  if(!table) return;
+  if(!mealEntries.length){ table.innerHTML = `<tr><td><div class="empty">এখনো কোনো মিল এন্ট্রি নেই।</div></td></tr>`; return; }
+  const sorted = [...mealEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  let head1 = `<th rowspan="2">তারিখ</th>`;
+  members.forEach(m=> head1 += `<th colspan="4">${m.নাম}</th>`);
+  head1 += `<th rowspan="2">দৈনিক মোট</th><th rowspan="2"></th>`;
+  let head2 = '';
+  members.forEach(()=> head2 += `<th>সকাল</th><th>দুপুর</th><th>রাত</th><th>মোট</th>`);
+  const body = sorted.map(entry=>{
+    let dayTotal = 0;
+    let cells = members.map(m=>{
+      const v = entry.meals[m.নাম] || {সকাল:0,দুপুর:0,রাত:0,মোট:0};
+      dayTotal += Number(v['মোট'])||0;
+      return `<td>${toBn(v['সকাল']||0)}</td><td>${toBn(v['দুপুর']||0)}</td><td>${toBn(v['রাত']||0)}</td><td class="amount">${toBn(v['মোট']||0)}</td>`;
+    }).join('');
+    return `<tr>
+      <td>${fmtDate(entry.date)}</td>${cells}<td class="amount">${toBn(dayTotal)}</td>
+      <td><div class="row-actions">
+        <button data-edit="${entry.date}">এডিট</button>
+        <button data-print="${entry.date}">প্রিন্ট</button>
+        <button data-del="${entry.date}" class="del">ডিলেট</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  table.innerHTML = `<thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${body}</tbody>`;
+
+  table.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
+    editingMealDate=b.dataset.edit; showMealForm=true; renderMeals(); window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  table.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(confirm('এই তারিখের মিল এন্ট্রি মুছে ফেলতে চান?')){
+      await apiPost({action:'deleteMealEntry', date:b.dataset.del});
+      mealEntries = mealEntries.filter(e=>e.date!==b.dataset.del);
+      renderMealTable();
+    }
+  }));
+  table.querySelectorAll('[data-print]').forEach(b=>b.addEventListener('click', ()=>{
+    const entry = mealEntries.find(e=>e.date===b.dataset.print);
+    let rows = members.map(m=>{
+      const v = entry.meals[m.নাম] || {সকাল:0,দুপুর:0,রাত:0,মোট:0};
+      return `<tr><td>${m.নাম}</td><td>${toBn(v['সকাল']||0)}</td><td>${toBn(v['দুপুর']||0)}</td><td>${toBn(v['রাত']||0)}</td><td>${toBn(v['মোট']||0)}</td></tr>`;
+    }).join('');
+    doPrint(`<h2>মিল এন্ট্রি — ${fmtDate(entry.date)}</h2>
+      <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;">
+        <tr><th>সদস্য</th><th>সকাল</th><th>দুপুর</th><th>রাত</th><th>মোট</th></tr>${rows}
+      </table>`);
+  }));
+}
+
+/* ======================= মেনু ও দৈনিক মেনু তালিকা ======================= */
+function renderDailyList(){
+  const sheet = document.getElementById('sheet');
+  const now = new Date();
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">মেনু</h2><span class="muted">মোট ${toBn(menuItems.length)} টি আইটেম</span></div>
+    <button class="toggle-btn ${showMenuForm?'open':''}" id="btnToggleMenuForm">${showMenuForm?'ফরম বন্ধ করুন':(editingMenuId?'সম্পাদনা ফরম খুলুন':'+ নতুন মেনু যুক্ত করুন')}</button>
+    <div id="menuFormWrap"></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ছবি</th><th>মেনুর নাম</th><th></th></tr></thead>
+      <tbody id="menuRows"></tbody>
+    </table></div>
+
+    <div class="sheet-title" style="margin-top:26px;"><h2 class="serif">দৈনিক মেনু তালিকা</h2></div>
+    <button class="toggle-btn ${showDailyForm?'open':''}" id="btnToggleDailyForm">${showDailyForm?'ফরম বন্ধ করুন':'+ নতুন দৈনিক মেনু তালিকা তৈরি করুন'}</button>
+    <div id="dailyFormWrap"></div>
+    <div class="card-list" id="dailyListCards"></div>
+    <div id="dailyGridArea"></div>
+  `;
+
+  document.getElementById('btnToggleMenuForm').addEventListener('click', ()=>{
+    showMenuForm=!showMenuForm; if(!showMenuForm) editingMenuId=null; renderDailyList();
+  });
+  if(showMenuForm) renderMenuFormInner();
+  renderMenuRows();
+
+  document.getElementById('btnToggleDailyForm').addEventListener('click', ()=>{
+    showDailyForm=!showDailyForm; renderDailyList();
+  });
+  if(showDailyForm){
+    const wrap = document.getElementById('dailyFormWrap');
+    wrap.innerHTML = `
+      <form class="entry" id="dailyForm">
+        <div class="field"><label>মাস</label><select name="month">${BN_MONTHS.map((mn,i)=>`<option value="${i}" ${now.getMonth()===i?'selected':''}>${mn}</option>`).join('')}</select></div>
+        <div class="field"><label>বছর</label><input type="number" name="year" value="${now.getFullYear()}"></div>
+        <div class="form-actions"><button type="submit" class="primary">তৈরি করুন</button></div>
+      </form>`;
+    document.getElementById('dailyForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const month = Number(fd.get('month')), year = Number(fd.get('year'));
+      const existingIdx = dailyLists.findIndex(x=>x.month===month && x.year===year);
+      if(existingIdx===-1) dailyLists.push({id:'dl'+Date.now(), month, year});
+      showDailyForm=false;
+      renderDailyList();
+      showDailyGrid(month, year);
+    });
+  }
+  renderDailyListCards();
+}
+
+function renderMenuFormInner(){
+  pendingMenuPhoto = null;
+  const editing = editingMenuId ? menuItems.find(mi=>mi.ID===editingMenuId) : null;
+  const wrap = document.getElementById('menuFormWrap');
+  wrap.innerHTML = `
+    <form class="entry" id="menuForm">
+      <div class="field"><label>মেনুর নাম</label><input type="text" name="নাম" required value="${editing?editing.নাম:''}"></div>
+      <div class="field"><label>ছবি</label>
+        <input type="file" accept="image/*" id="menuPhotoInput">
+        <img id="menuPhotoPreview" class="avatar-preview" style="border-radius:6px;${editing&&editing.ছবি?'':'display:none;'}" src="${editing&&editing.ছবি?editing.ছবি:''}">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary">${editing?'হালনাগাদ করুন':'সংরক্ষণ করুন'}</button>
+        <button type="button" class="ghost" id="cancelMenuForm">বাতিল</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('cancelMenuForm').addEventListener('click', ()=>{ showMenuForm=false; editingMenuId=null; renderDailyList(); });
+  document.getElementById('menuPhotoInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const dataUrl = await resizeImageToDataUrl(file, 150);
+    pendingMenuPhoto = dataUrl;
+    const preview = document.getElementById('menuPhotoPreview');
+    preview.src = dataUrl; preview.style.display='block';
+  });
+  document.getElementById('menuForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      ID: editing ? editing.ID : 'mn'+Date.now(),
+      নাম: fd.get('নাম').trim(),
+      ছবি: pendingMenuPhoto || (editing ? editing.ছবি||'' : '')
+    };
+    await apiPost({action:'saveMenuItem', data});
+    const idx = menuItems.findIndex(mi=>mi.ID===data.ID);
+    if(idx>-1) menuItems[idx]=data; else menuItems.push(data);
+    showMenuForm=false; editingMenuId=null;
+    renderDailyList();
+  });
+}
+
+function renderMenuRows(){
+  const tbody = document.getElementById('menuRows');
+  if(!tbody) return;
+  if(!menuItems.length){ tbody.innerHTML = `<tr><td colspan="3"><div class="empty">এখনো কোনো মেনু আইটেম যুক্ত হয়নি।</div></td></tr>`; return; }
+  tbody.innerHTML = menuItems.map(mi=>`
+    <tr>
+      <td>${mi.ছবি ? `<img src="${mi.ছবি}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">` : '—'}</td>
+      <td>${mi.নাম}</td>
+      <td><div class="row-actions">
+        <button data-editmenu="${mi.ID}">সম্পাদনা</button>
+        <button data-delmenu="${mi.ID}" class="del">মুছুন</button>
+      </div></td>
+    </tr>
+  `).join('');
+  tbody.querySelectorAll('[data-editmenu]').forEach(b=>b.addEventListener('click', ()=>{
+    editingMenuId=b.dataset.editmenu; showMenuForm=true; renderDailyList(); window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  tbody.querySelectorAll('[data-delmenu]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(confirm('এই মেনু আইটেমটি মুছে ফেলতে চান?')){
+      await apiPost({action:'deleteMenuItem', id:b.dataset.delmenu});
+      menuItems = menuItems.filter(mi=>mi.ID!==b.dataset.delmenu);
+      renderMenuRows();
+    }
+  }));
+}
+
+function renderDailyListCards(){
+  const box = document.getElementById('dailyListCards');
+  if(!dailyLists.length){ box.innerHTML = `<div class="empty">এখনো কোনো দৈনিক মেনু তালিকা তৈরি হয়নি।</div>`; return; }
+  box.innerHTML = dailyLists.map(dl=>`
+    <div class="card-item">
+      <span>${BN_MONTHS[dl.month]} ${toBn(dl.year)}</span>
+      <div class="actions">
+        <button data-view="${dl.id}" style="text-decoration:underline;background:none;border:none;color:var(--ledger-blue);cursor:pointer;">দেখুন / সম্পাদনা</button>
+        <button data-printdl="${dl.id}" style="text-decoration:underline;background:none;border:none;color:var(--ledger-blue);cursor:pointer;">প্রিন্ট</button>
+        <button data-deldl="${dl.id}" style="text-decoration:underline;background:none;border:none;color:var(--bad);cursor:pointer;">ডিলেট</button>
+      </div>
+    </div>
+  `).join('');
+  box.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click', ()=>{
+    const dl = dailyLists.find(x=>x.id===b.dataset.view);
+    showDailyGrid(dl.month, dl.year);
+  }));
+  box.querySelectorAll('[data-printdl]').forEach(b=>b.addEventListener('click', ()=>{
+    const dl = dailyLists.find(x=>x.id===b.dataset.printdl);
+    printDailyGrid(dl.month, dl.year);
+  }));
+  box.querySelectorAll('[data-deldl]').forEach(b=>b.addEventListener('click', ()=>{
+    dailyLists = dailyLists.filter(x=>x.id!==b.dataset.deldl);
+    document.getElementById('dailyGridArea').innerHTML='';
+    renderDailyList();
+  }));
+}
+
+function menuPhotoHtml(menuId){
+  if(!menuId) return '';
+  const mi = menuItems.find(x=>x.ID===menuId);
+  if(!mi || !mi.ছবি) return '';
+  return `<img src="${mi.ছবি}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block;margin-top:4px;">`;
+}
+
+let gridState = {};
+
+function showDailyGrid(month, year){
+  const dim = daysInMonth(month, year);
+  gridState = {};
+  let body = '';
+  for(let day=1; day<=dim; day++){
+    const iso = year+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const row = dailyMenus.find(d=>d.তারিখ===iso) || {};
+    gridState[iso] = { 'সকাল': row['সকাল']||'', 'দুপুর': row['দুপুর']||'', 'রাত': row['রাত']||'' };
+    const mealCell = (mealType)=>{
+      const current = gridState[iso][mealType];
+      return `<td>
+        <select class="menu-select" data-date="${iso}" data-meal="${mealType}">
+          <option value="">— নির্বাচন করুন —</option>
+          ${menuItems.map(mi=>`<option value="${mi.ID}" ${current===mi.ID?'selected':''}>${mi.নাম}</option>`).join('')}
+        </select>
+        <div id="mp-${iso}-${mealType}">${menuPhotoHtml(current)}</div>
+      </td>`;
+    };
+    body += `<tr><td>${toBn(day)}</td>${mealCell('সকাল')}${mealCell('দুপুর')}${mealCell('রাত')}</tr>`;
+  }
+  const html = `
+    <h3 class="serif">${BN_MONTHS[month]} ${toBn(year)} — দৈনিক মেনু তালিকা</h3>
+    <p class="print-note">প্রতিটি বক্সে খাবার নির্বাচন করলে সাথে সাথে সংরক্ষণ হয়ে যাবে। প্রিন্ট করতে চাইলে উপরের তালিকায় "প্রিন্ট" বাটন ব্যবহার করুন।</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>তারিখ</th><th>সকাল</th><th>দুপুর</th><th>রাত</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  `;
+  const area = document.getElementById('dailyGridArea');
+  area.innerHTML = html;
+  area.querySelectorAll('.menu-select').forEach(sel=>{
+    sel.addEventListener('change', async (e)=>{
+      const date = e.target.dataset.date, meal = e.target.dataset.meal, val = e.target.value;
+      gridState[date][meal] = val;
+      document.getElementById(`mp-${date}-${meal}`).innerHTML = menuPhotoHtml(val);
+      await apiPost({action:'saveDailyMenu', date, values: gridState[date]});
+      const idx = dailyMenus.findIndex(d=>d.তারিখ===date);
+      const newRow = { তারিখ: date, ...gridState[date] };
+      if(idx>-1) dailyMenus[idx]=newRow; else dailyMenus.push(newRow);
+    });
+  });
+}
+
+function printDailyGrid(month, year){
+  const dim = daysInMonth(month, year);
+  let body = '';
+  for(let day=1; day<=dim; day++){
+    const iso = year+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const row = dailyMenus.find(d=>d.তারিখ===iso) || {};
+    const cell = (mealType)=>{
+      const mi = menuItems.find(x=>x.ID===row[mealType]);
+      if(!mi) return '—';
+      return `${mi.ছবি?`<img src="${mi.ছবি}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 4px;">`:''}${mi.নাম}`;
+    };
+    body += `<tr><td>${toBn(day)}</td><td style="text-align:center;">${cell('সকাল')}</td><td style="text-align:center;">${cell('দুপুর')}</td><td style="text-align:center;">${cell('রাত')}</td></tr>`;
+  }
+  doPrint(`<h2>${BN_MONTHS[month]} ${toBn(year)} — দৈনিক মেনু তালিকা</h2>
+    <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;">
+      <tr><th>তারিখ</th><th>সকাল</th><th>দুপুর</th><th>রাত</th></tr>${body}
+    </table>`);
+}
+
+/* ======================= রিপোর্ট ======================= */
+function renderReport(){
+  const sheet = document.getElementById('sheet');
+  const now = new Date();
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">রিপোর্ট</h2></div>
+    <button class="toggle-btn ${showReportForm?'open':''}" id="btnToggleReportForm">${showReportForm?'ফরম বন্ধ করুন':'+ রিপোর্ট তৈরি করুন'}</button>
+    <div id="reportFormWrap"></div>
+    <div id="reportResult"></div>
+  `;
+  document.getElementById('btnToggleReportForm').addEventListener('click', ()=>{ showReportForm=!showReportForm; renderReport(); });
+
+  if(showReportForm){
+    const wrap = document.getElementById('reportFormWrap');
+    wrap.innerHTML = `
+      <div class="report-type-toggle">
+        <button type="button" class="${reportType==='member'?'active':''}" id="rtMember">সদস্য ভিত্তিক</button>
+        <button type="button" class="${reportType==='all'?'active':''}" id="rtAll">সকল</button>
+      </div>
+      <form class="entry" id="reportForm">
+        ${reportType==='member' ? `<div class="field full"><label>সদস্য</label>
+          <select name="memberId">${members.map(m=>`<option value="${m.ID}">${m.নাম}</option>`).join('')}</select>
+        </div>` : ''}
+        <div class="field"><label>মাস</label><select name="month">${BN_MONTHS.map((mn,i)=>`<option value="${i}" ${now.getMonth()===i?'selected':''}>${mn}</option>`).join('')}</select></div>
+        <div class="field"><label>বছর</label><input type="number" name="year" value="${now.getFullYear()}"></div>
+        ${reportType==='member' ? `<div class="field"><label>প্রতি মিল রেট (ঐচ্ছিক)</label><input type="number" min="0" name="rate" placeholder="যেমন ৫০"></div>` : ''}
+        <div class="form-actions"><button type="submit" class="primary">রিপোর্ট তৈরি করুন</button></div>
+      </form>
+    `;
+    document.getElementById('rtMember').addEventListener('click', ()=>{ reportType='member'; renderReport(); });
+    document.getElementById('rtAll').addEventListener('click', ()=>{ reportType='all'; renderReport(); });
+    document.getElementById('reportForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const month = Number(fd.get('month')), year = Number(fd.get('year'));
+      if(reportType==='member') buildMemberReport(fd.get('memberId'), month, year, Number(fd.get('rate'))||0);
+      else buildAllReport(month, year);
+    });
+  }
+}
+
+function memberMealTotals(name, month, year){
+  const dim = daysInMonth(month, year);
+  let b=0,l=0,d=0,t=0;
+  for(let day=1; day<=dim; day++){
+    const iso = year+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const entry = mealEntries.find(e=>e.date===iso);
+    if(entry && entry.meals[name]){
+      b += Number(entry.meals[name]['সকাল'])||0;
+      l += Number(entry.meals[name]['দুপুর'])||0;
+      d += Number(entry.meals[name]['রাত'])||0;
+      t += Number(entry.meals[name]['মোট'])||0;
+    }
+  }
+  return {b,l,d,t};
+}
+
+function buildMemberReport(memberId, month, year, rate){
+  const m = members.find(x=>x.ID===memberId);
+  if(!m){ return; }
+  const meals = memberMealTotals(m.নাম, month, year);
+  const memDeposits = deposits.filter(d=> d.সদস্য_আইডি===memberId && Number(d.ভাড়ার_মাস)===month && Number(d.ভাড়ার_বছর)===year);
+  const totalDeposit = memDeposits.reduce((s,d)=> s+(Number(d.ভর্তি_ফি)||0)+(Number(d.ভাড়ার_পরিমাণ)||0), 0);
+  const mealCost = rate ? meals.t*rate : null;
+
+  const html = `
+    <div class="member-header">${avatarHtml(m,44)}<div><strong class="serif">${m.নাম}</strong><div class="muted">${BN_MONTHS[month]} ${toBn(year)}</div></div></div>
+    <div class="tiles">
+      <div class="tile blue"><span class="num">${toBn(meals.b)}</span><span class="label">সকাল</span></div>
+      <div class="tile blue"><span class="num">${toBn(meals.l)}</span><span class="label">দুপুর</span></div>
+      <div class="tile blue"><span class="num">${toBn(meals.d)}</span><span class="label">রাত</span></div>
+      <div class="tile"><span class="num">${toBn(meals.t)}</span><span class="label">মোট মিল</span></div>
+      <div class="tile good"><span class="num">${fmtMoney(totalDeposit)}</span><span class="label">মোট জমা</span></div>
+      ${mealCost!==null ? `<div class="tile"><span class="num">${fmtMoney(mealCost)}</span><span class="label">মিল খরচ (রেট অনুযায়ী)</span></div>` : ''}
+    </div>
+    <button class="ghost" id="printMemberReport">প্রিন্ট করুন</button>
+  `;
+  document.getElementById('reportResult').innerHTML = html;
+  document.getElementById('printMemberReport').addEventListener('click', ()=> doPrint(html.replace('<button class="ghost" id="printMemberReport">প্রিন্ট করুন</button>','')));
+}
+
+function buildAllReport(month, year){
+  const rows = members.map(m=>{
+    const meals = memberMealTotals(m.নাম, month, year);
+    const memDeposits = deposits.filter(d=> d.সদস্য_আইডি===m.ID && Number(d.ভাড়ার_মাস)===month && Number(d.ভাড়ার_বছর)===year);
+    const totalDeposit = memDeposits.reduce((s,d)=> s+(Number(d.ভর্তি_ফি)||0)+(Number(d.ভাড়ার_পরিমাণ)||0), 0);
+    return {m, meals, totalDeposit};
+  });
+  const tableRows = rows.map(r=>`<tr>
+    <td>${avatarHtml(r.m)} ${r.m.নাম}</td><td>${toBn(r.meals.t)}</td><td class="amount">${fmtMoney(r.totalDeposit)}</td>
+  </tr>`).join('');
+  const html = `
+    <h3 class="serif">${BN_MONTHS[month]} ${toBn(year)} — সকল সদস্যের রিপোর্ট</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>সদস্য</th><th>মোট মিল</th><th>মোট জমা</th></tr></thead>
+      <tbody>${tableRows || `<tr><td colspan="3"><div class="empty">কোনো সদস্য নেই।</div></td></tr>`}</tbody>
+    </table></div>
+    <button class="ghost" id="printAllReport">প্রিন্ট করুন</button>
+  `;
+  document.getElementById('reportResult').innerHTML = html;
+  document.getElementById('printAllReport').addEventListener('click', ()=> doPrint(html.replace('<button class="ghost" id="printAllReport">প্রিন্ট করুন</button>','')));
+}
+
+loadAll();
+</script>
+</body>
+</html>
+
+<!--
+======================= সেটআপ নির্দেশনা (বাংলা) =======================
+
+এই অ্যাপটি এখন Google Sheet-কে ডাটাবেজ হিসেবে ব্যবহার করে, যাতে আপনি এটি GitHub-এ
+আপলোড করে যেকোনো ব্রাউজার/ডিভাইস থেকে চালাতে পারেন। সেটআপ করতে নিচের ধাপগুলো অনুসরণ করুন:
+
+১) একটি নতুন Google Sheet তৈরি করুন (sheets.google.com এ গিয়ে)।
+
+২) মেনু থেকে Extensions > Apps Script এ ক্লিক করুন।
+
+৩) যে কোড এডিটর খুলবে সেখানে ডিফল্ট কোড মুছে দিয়ে "Code.gs" ফাইলের সম্পূর্ণ কোড
+   পেস্ট করুন (এই ফাইলটি আলাদাভাবে দেওয়া হয়েছে)।
+
+৪) উপরে Save (ডিস্ক আইকন) চাপুন।
+
+৫) Deploy > New deployment এ ক্লিক করুন।
+   - Select type (গিয়ার আইকন) > Web app বেছে নিন।
+   - Execute as: "Me" রাখুন।
+   - Who has access: "Anyone" নির্বাচন করুন (এটা জরুরি, নাহলে অ্যাপ কাজ করবে না)।
+   - Deploy বাটনে ক্লিক করুন। প্রথমবার একটা Authorize অনুমতি চাইবে, নিজের গুগল
+     অ্যাকাউন্ট দিয়ে অনুমতি দিন।
+
+৬) ডিপ্লয় হয়ে গেলে একটা "Web app URL" পাবেন, যেটা .../exec দিয়ে শেষ হয়। সেটা কপি করুন।
+
+৭) এই HTML ফাইলে উপরের দিকে খুঁজুন:
+      const CONFIG = { API_URL: "" };
+   দুই কোটেশনের মাঝে আপনার কপি করা লিংকটি বসান, যেমন:
+      const CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycb.../exec" };
+
+৮) ফাইলটি সেভ করে GitHub-এ আপলোড করুন (GitHub Pages চালু করলে একটা পাবলিক লিংক
+   পাবেন, যেটা দিয়ে যেকোনো ডিভাইস থেকে অ্যাপটি চালানো যাবে)।
+
+মনে রাখবেন: "Who has access: Anyone" মানে আপনার শীটের লিংক যার কাছে থাকবে সেই তথ্য
+পড়তে/লিখতে পারবে, তাই লিংকটি শুধু বিশ্বস্ত মানুষের সাথে শেয়ার করুন।
+
+কোনো ডেটা ভবিষ্যতে গুগল শীটে সরাসরি দেখতে চাইলে, একই স্প্রেডশিটে "Members",
+"Deposits", "MealEntries", "MenuItems" ও "DailyMenu" নামে পাঁচটি শীট (ট্যাব)
+অটোমেটিক তৈরি হয়ে যাবে যখন আপনি অ্যাপ থেকে প্রথম ডেটা যোগ করবেন।
+
+নতুন ফিচার যোগ করার পর আগের Code.gs আপডেট করে আবার Deploy > Manage deployments >
+Edit (পেন্সিল আইকন) > New version দিয়ে পুনরায় ডিপ্লয় করতে ভুলবেন না, নাহলে
+নতুন "মেনু" ও "দৈনিক মেনু তালিকা" ফিচার কাজ করবে না।
+-->
