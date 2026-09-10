@@ -81,10 +81,26 @@
   .member-header img,.member-header .avatar-ph{width:44px;height:44px;font-size:1rem;}
   .print-note{font-size:.78rem;color:var(--ink-soft);margin-bottom:10px;}
   #printArea{display:none;}
+  .fee-input{width:90px;}
+  .official-print h2{margin:0 0 4px;}
+  .official-print .stmt-meta{font-size:.85rem;margin-bottom:14px;}
+  .official-print table{width:100%;border-collapse:collapse;}
+  .official-print th,.official-print td{border:1px solid #000;padding:6px 8px;font-size:.9rem;}
+  .official-print .sig-row{display:flex;justify-content:space-between;margin-top:50px;font-size:.85rem;}
+  .official-print .sig-row div{border-top:1px solid #000;padding-top:6px;width:160px;text-align:center;}
   @media print{
+    body{background:#fff !important;}
     body *{visibility:hidden;}
     #printArea,#printArea *{visibility:visible;}
-    #printArea{display:block;position:absolute;left:0;top:0;width:100%;padding:10px;}
+    #printArea{display:block;position:absolute;left:0;top:0;width:100%;padding:10px;background:#fff !important;}
+    #printArea, #printArea *{
+      background:transparent !important;
+      background-image:none !important;
+      box-shadow:none !important;
+      color:#000 !important;
+      border-color:#000 !important;
+    }
+    #printArea table, #printArea th, #printArea td{border:1px solid #000 !important;}
   }
   @media (max-width:480px){ header h1{font-size:1.25rem;} .sheet{padding:15px 10px 6px;} }
 </style>
@@ -103,6 +119,7 @@
   <button data-tab="dashboard" class="active">ড্যাশবোর্ড</button>
   <button data-tab="members">সদস্য</button>
   <button data-tab="deposits">জমা</button>
+  <button data-tab="fees">ফি নির্ধারণ</button>
   <button data-tab="meals">মিল এন্ট্রি</button>
   <button data-tab="dailylist">দৈনিক মেনু তালিকা</button>
   <button data-tab="report">রিপোর্ট</button>
@@ -189,14 +206,24 @@ async function apiPost(payload){
 /* ======================= স্টেট ======================= */
 let members = [], deposits = [], mealEntries = [];
 let menuItems = [], dailyMenus = [];
+let feeSettings = [], monthlyExpenses = [];
 let currentTab = 'dashboard';
-let editingMemberId=null, editingDepositId=null, editingMealDate=null, editingMenuId=null;
-let showMemberForm=false, showDepositForm=false, showMealForm=false, showDailyForm=false, showReportForm=true, showMenuForm=false;
+let editingMemberId=null, editingDepositId=null, editingMealDate=null, editingMenuId=null, editingFeeId=null, editingExpenseId=null;
+let showMemberForm=false, showDepositForm=false, showMealForm=false, showDailyForm=false, showReportForm=true, showMenuForm=false, showFeeForm=false, showExpenseForm=false;
 let memberSearch='';
 let dailyLists = []; // { id, month, year } — সেশনে তৈরি করা দৈনিক মেনু তালিকার তালিকা
 let reportType = 'member';
 let pendingMemberPhoto = null;
 let pendingMenuPhoto = null;
+const FEE_CATS = [
+  {key:'ভাড়া', label:'ভাড়া'},
+  {key:'গ্যাস_বিল', label:'গ্যাস বিল'},
+  {key:'বিদ্যুৎ_বিল', label:'বিদ্যুৎ বিল'},
+  {key:'ময়লা_বিল', label:'ময়লা বিল'},
+  {key:'আসবাবপত্র_বিল', label:'আসবাবপত্র বিল'},
+  {key:'বাবুর্চি_বিল', label:'বাবুর্চি বিল'},
+  {key:'খাবার_বিল', label:'খাবার বিল'}
+];
 
 async function loadAll(){
   if(!CONFIG.API_URL){
@@ -211,6 +238,8 @@ async function loadAll(){
     mealEntries = data.meals || [];
     menuItems = data.menuItems || [];
     dailyMenus = data.dailyMenus || [];
+    feeSettings = data.feeSettings || [];
+    monthlyExpenses = data.monthlyExpenses || [];
   }catch(err){
     alert('তথ্য লোড করতে সমস্যা হয়েছে। ইন্টারনেট সংযোগ ও API লিংক পরীক্ষা করুন।\n' + err.message);
   }
@@ -223,7 +252,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
     document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     currentTab = btn.dataset.tab;
-    editingMemberId=null; editingDepositId=null; editingMealDate=null; editingMenuId=null;
+    editingMemberId=null; editingDepositId=null; editingMealDate=null; editingMenuId=null; editingFeeId=null; editingExpenseId=null;
     render();
   });
 });
@@ -232,6 +261,7 @@ function render(){
   if(currentTab==='dashboard') renderDashboard();
   else if(currentTab==='members') renderMembers();
   else if(currentTab==='deposits') renderDeposits();
+  else if(currentTab==='fees') renderFees();
   else if(currentTab==='meals') renderMeals();
   else if(currentTab==='dailylist') renderDailyList();
   else renderReport();
@@ -494,6 +524,193 @@ function renderDepositRows(){
       await apiPost({action:'deleteDeposit', id:b.dataset.del});
       deposits = deposits.filter(d=>d.ID!==b.dataset.del);
       renderDeposits();
+    }
+  }));
+}
+
+/* ======================= ফি নির্ধারণ ======================= */
+function renderFees(){
+  const sheet = document.getElementById('sheet');
+  if(!members.length){
+    sheet.innerHTML = `<div class="sheet-title"><h2 class="serif">ফি নির্ধারণ</h2></div><div class="empty">ফি নির্ধারণের আগে অন্তত একজন সদস্য যুক্ত করুন।</div>`;
+    return;
+  }
+  sheet.innerHTML = `
+    <div class="sheet-title"><h2 class="serif">ফি নির্ধারণ</h2><span class="muted">মোট ${toBn(feeSettings.length)} টি এন্ট্রি</span></div>
+    <button class="toggle-btn ${showFeeForm?'open':''}" id="btnToggleFeeForm">${showFeeForm?'ফরম বন্ধ করুন':(editingFeeId?'সম্পাদনা ফরম খুলুন':'+ নতুন ফি নির্ধারণ')}</button>
+    <div id="feeFormWrap"></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>সদস্য</th><th>কার্যকর তারিখ</th>${FEE_CATS.map(c=>`<th>${c.label}</th>`).join('')}<th>মোট</th><th></th></tr></thead>
+      <tbody id="feeRows"></tbody>
+    </table></div>
+    <p class="print-note">একই সদস্যর জন্য নতুন তারিখ দিয়ে আরেকটি ফি নির্ধারণ যোগ করলে সেটাই ফি বৃদ্ধি/কমানো হিসেবে কাজ করবে — সেই তারিখ থেকে নতুন হার অনুযায়ী হিসাব হবে।</p>
+
+    <div class="sheet-title" style="margin-top:26px;"><h2 class="serif">মাসিক মোট খরচ (খাবার/মেস খরচ)</h2></div>
+    <p class="print-note">যেসব সদস্যর "খাবার বিল" ফি নির্ধারণে খালি রাখা হয়েছে, তাদের খাবার বিল এই মাসিক খরচ দিয়ে মিল রেট হিসাব করে বের করা হবে।</p>
+    <button class="toggle-btn ${showExpenseForm?'open':''}" id="btnToggleExpenseForm">${showExpenseForm?'ফরম বন্ধ করুন':(editingExpenseId?'সম্পাদনা ফরম খুলুন':'+ মাসিক খরচ যুক্ত করুন')}</button>
+    <div id="expenseFormWrap"></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>মাস</th><th>বছর</th><th>মোট খরচ</th><th></th></tr></thead>
+      <tbody id="expenseRows"></tbody>
+    </table></div>
+  `;
+
+  document.getElementById('btnToggleFeeForm').addEventListener('click', ()=>{
+    showFeeForm=!showFeeForm; if(!showFeeForm) editingFeeId=null; renderFees();
+  });
+  if(showFeeForm) renderFeeFormInner();
+  renderFeeRows();
+
+  document.getElementById('btnToggleExpenseForm').addEventListener('click', ()=>{
+    showExpenseForm=!showExpenseForm; if(!showExpenseForm) editingExpenseId=null; renderFees();
+  });
+  if(showExpenseForm) renderExpenseFormInner();
+  renderExpenseRows();
+}
+
+function renderFeeFormInner(){
+  const editing = editingFeeId ? feeSettings.find(f=>f.ID===editingFeeId) : null;
+  const wrap = document.getElementById('feeFormWrap');
+  wrap.innerHTML = `
+    <form class="entry" id="feeForm">
+      <div class="field full"><label>সদস্য</label>
+        <select name="সদস্য_আইডি" required>
+          <option value="">নির্বাচন করুন</option>
+          ${members.map(m=>`<option value="${m.ID}" ${editing&&editing.সদস্য_আইডি===m.ID?'selected':''}>${m.নাম} — ${m.মোবাইল}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>কার্যকর তারিখ</label><input type="date" name="তারিখ" required value="${editing?editing.তারিখ:todayIso()}"></div>
+      ${FEE_CATS.filter(c=>c.key!=='খাবার_বিল').map(c=>`
+        <div class="field"><label>${c.label}</label><input type="number" min="0" class="fee-input" name="${c.key}" value="${editing?editing[c.key]:0}"></div>
+      `).join('')}
+      <div class="field"><label>খাবার বিল <span class="muted">(না দিলে মিল হিসেবে গণনা হবে)</span></label>
+        <input type="number" min="0" class="fee-input" name="খাবার_বিল" value="${editing && editing.খাবার_বিল!=='' && editing.খাবার_বিল!==undefined && editing.খাবার_বিল!==null ? editing.খাবার_বিল : ''}" placeholder="নির্ধারিত না থাকলে খালি রাখুন">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary">${editing?'হালনাগাদ করুন':'সংরক্ষণ করুন'}</button>
+        <button type="button" class="ghost" id="cancelFeeForm">বাতিল</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('cancelFeeForm').addEventListener('click', ()=>{ showFeeForm=false; editingFeeId=null; renderFees(); });
+  document.getElementById('feeForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const mid = fd.get('সদস্য_আইডি');
+    if(!mid){ alert('সদস্য নির্বাচন করুন।'); return; }
+    const data = { ID: editing?editing.ID:'f'+Date.now(), সদস্য_আইডি: mid, তারিখ: fd.get('তারিখ') };
+    FEE_CATS.forEach(c=>{
+      if(c.key==='খাবার_বিল'){
+        const v = fd.get(c.key);
+        data[c.key] = (v==='') ? '' : (Number(v)||0);
+      } else {
+        data[c.key] = Number(fd.get(c.key))||0;
+      }
+    });
+    await apiPost({action:'saveFeeSetting', data});
+    const idx = feeSettings.findIndex(f=>f.ID===data.ID);
+    if(idx>-1) feeSettings[idx]=data; else feeSettings.push(data);
+    showFeeForm=false; editingFeeId=null;
+    renderFees();
+  });
+}
+
+function feeTotal(fee){
+  return FEE_CATS.reduce((s,c)=> s + (fee[c.key]==='' || fee[c.key]==null ? 0 : Number(fee[c.key])||0), 0);
+}
+
+function renderFeeRows(){
+  const tbody = document.getElementById('feeRows');
+  if(!tbody) return;
+  const sorted = [...feeSettings].sort((a,b)=>(b.তারিখ||'').localeCompare(a.তারিখ||''));
+  if(!sorted.length){ tbody.innerHTML = `<tr><td colspan="${FEE_CATS.length+4}"><div class="empty">এখনো কোনো ফি নির্ধারণ করা হয়নি।</div></td></tr>`; return; }
+  tbody.innerHTML = sorted.map(f=>{
+    const mem = members.find(m=>m.ID===f.সদস্য_আইডি);
+    const cells = FEE_CATS.map(c=> `<td class="amount">${(f[c.key]==='' || f[c.key]==null) ? 'মিল অনুযায়ী' : fmtMoney(f[c.key])}</td>`).join('');
+    return `<tr>
+      <td>${mem?mem.নাম:'অজানা'}</td><td>${fmtDate(f.তারিখ)}</td>${cells}
+      <td class="amount">${fmtMoney(feeTotal(f))}</td>
+      <td><div class="row-actions">
+        <button data-edit="${f.ID}">এডিট</button>
+        <button data-print="${f.ID}">প্রিন্ট</button>
+        <button data-del="${f.ID}" class="del">ডিলেট</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
+    editingFeeId=b.dataset.edit; showFeeForm=true; renderFees(); window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(confirm('এই ফি নির্ধারণ এন্ট্রি মুছে ফেলতে চান?')){
+      await apiPost({action:'deleteFeeSetting', id:b.dataset.del});
+      feeSettings = feeSettings.filter(f=>f.ID!==b.dataset.del);
+      renderFeeRows();
+    }
+  }));
+  tbody.querySelectorAll('[data-print]').forEach(b=>b.addEventListener('click', ()=>{
+    const f = feeSettings.find(x=>x.ID===b.dataset.print);
+    const mem = members.find(m=>m.ID===f.সদস্য_আইডি);
+    const rows = FEE_CATS.map(c=>`<tr><td>${c.label}</td><td>${(f[c.key]===''||f[c.key]==null)?'মিল অনুযায়ী নির্ধারিত হবে':fmtMoney(f[c.key])}</td></tr>`).join('');
+    doPrint(`<div class="official-print">
+      <h2>ফি নির্ধারণ</h2>
+      <div class="stmt-meta">সদস্য: ${mem?mem.নাম:'অজানা'} — ${mem?mem.মোবাইল:''}<br>কার্যকর তারিখ: ${fmtDate(f.তারিখ)}</div>
+      <table><tr><th>খাত</th><th>পরিমাণ</th></tr>${rows}<tr><td><strong>মোট</strong></td><td><strong>${fmtMoney(feeTotal(f))}</strong></td></tr></table>
+    </div>`);
+  }));
+}
+
+function renderExpenseFormInner(){
+  const now = new Date();
+  const editing = editingExpenseId ? monthlyExpenses.find(x=>x.ID===editingExpenseId) : null;
+  const wrap = document.getElementById('expenseFormWrap');
+  wrap.innerHTML = `
+    <form class="entry" id="expenseForm">
+      <div class="field"><label>মাস</label><select name="মাস">${BN_MONTHS.map((mn,i)=>`<option value="${i}" ${editing?(Number(editing.মাস)===i?'selected':''):(now.getMonth()===i?'selected':'')}>${mn}</option>`).join('')}</select></div>
+      <div class="field"><label>বছর</label><input type="number" name="বছর" value="${editing?editing.বছর:now.getFullYear()}"></div>
+      <div class="field"><label>মোট খরচ</label><input type="number" min="0" name="মোট_খরচ" value="${editing?editing.মোট_খরচ:''}"></div>
+      <div class="form-actions">
+        <button type="submit" class="primary">${editing?'হালনাগাদ করুন':'সংরক্ষণ করুন'}</button>
+        <button type="button" class="ghost" id="cancelExpenseForm">বাতিল</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('cancelExpenseForm').addEventListener('click', ()=>{ showExpenseForm=false; editingExpenseId=null; renderFees(); });
+  document.getElementById('expenseForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      ID: editing?editing.ID:'ex'+Date.now(),
+      মাস: Number(fd.get('মাস')),
+      বছর: Number(fd.get('বছর')),
+      মোট_খরচ: Number(fd.get('মোট_খরচ'))||0
+    };
+    await apiPost({action:'saveMonthlyExpense', data});
+    const idx = monthlyExpenses.findIndex(x=>x.ID===data.ID);
+    if(idx>-1) monthlyExpenses[idx]=data; else monthlyExpenses.push(data);
+    showExpenseForm=false; editingExpenseId=null;
+    renderFees();
+  });
+}
+
+function renderExpenseRows(){
+  const tbody = document.getElementById('expenseRows');
+  if(!tbody) return;
+  const sorted = [...monthlyExpenses].sort((a,b)=> (b.বছর-a.বছর) || (b.মাস-a.মাস));
+  if(!sorted.length){ tbody.innerHTML = `<tr><td colspan="4"><div class="empty">এখনো কোনো মাসিক খরচ যুক্ত হয়নি।</div></td></tr>`; return; }
+  tbody.innerHTML = sorted.map(x=>`
+    <tr>
+      <td>${BN_MONTHS[x.মাস]}</td><td>${toBn(x.বছর)}</td><td class="amount">${fmtMoney(x.মোট_খরচ)}</td>
+      <td><div class="row-actions"><button data-editex="${x.ID}">এডিট</button><button data-delex="${x.ID}" class="del">ডিলেট</button></div></td>
+    </tr>
+  `).join('');
+  tbody.querySelectorAll('[data-editex]').forEach(b=>b.addEventListener('click', ()=>{
+    editingExpenseId=b.dataset.editex; showExpenseForm=true; renderFees(); window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  tbody.querySelectorAll('[data-delex]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(confirm('এই মাসিক খরচ এন্ট্রি মুছে ফেলতে চান?')){
+      await apiPost({action:'deleteMonthlyExpense', id:b.dataset.delex});
+      monthlyExpenses = monthlyExpenses.filter(x=>x.ID!==b.dataset.delex);
+      renderExpenseRows();
     }
   }));
 }
@@ -849,7 +1066,6 @@ function printDailyGrid(month, year){
 /* ======================= রিপোর্ট ======================= */
 function renderReport(){
   const sheet = document.getElementById('sheet');
-  const now = new Date();
   sheet.innerHTML = `
     <div class="sheet-title"><h2 class="serif">রিপোর্ট</h2></div>
     <button class="toggle-btn ${showReportForm?'open':''}" id="btnToggleReportForm">${showReportForm?'ফরম বন্ধ করুন':'+ রিপোর্ট তৈরি করুন'}</button>
@@ -869,9 +1085,7 @@ function renderReport(){
         ${reportType==='member' ? `<div class="field full"><label>সদস্য</label>
           <select name="memberId">${members.map(m=>`<option value="${m.ID}">${m.নাম}</option>`).join('')}</select>
         </div>` : ''}
-        <div class="field"><label>মাস</label><select name="month">${BN_MONTHS.map((mn,i)=>`<option value="${i}" ${now.getMonth()===i?'selected':''}>${mn}</option>`).join('')}</select></div>
-        <div class="field"><label>বছর</label><input type="number" name="year" value="${now.getFullYear()}"></div>
-        ${reportType==='member' ? `<div class="field"><label>প্রতি মিল রেট (ঐচ্ছিক)</label><input type="number" min="0" name="rate" placeholder="যেমন ৫০"></div>` : ''}
+        <div class="field"><label>হিসাবের তারিখ পর্যন্ত</label><input type="date" name="asOf" value="${todayIso()}"></div>
         <div class="form-actions"><button type="submit" class="primary">রিপোর্ট তৈরি করুন</button></div>
       </form>
     `;
@@ -880,9 +1094,9 @@ function renderReport(){
     document.getElementById('reportForm').addEventListener('submit', (e)=>{
       e.preventDefault();
       const fd = new FormData(e.target);
-      const month = Number(fd.get('month')), year = Number(fd.get('year'));
-      if(reportType==='member') buildMemberReport(fd.get('memberId'), month, year, Number(fd.get('rate'))||0);
-      else buildAllReport(month, year);
+      const asOf = fd.get('asOf') || todayIso();
+      if(reportType==='member') buildMemberReport(fd.get('memberId'), asOf);
+      else buildAllReport(asOf);
     });
   }
 }
@@ -903,50 +1117,122 @@ function memberMealTotals(name, month, year){
   return {b,l,d,t};
 }
 
-function buildMemberReport(memberId, month, year, rate){
-  const m = members.find(x=>x.ID===memberId);
-  if(!m){ return; }
-  const meals = memberMealTotals(m.নাম, month, year);
-  const memDeposits = deposits.filter(d=> d.সদস্য_আইডি===memberId && Number(d.ভাড়ার_মাস)===month && Number(d.ভাড়ার_বছর)===year);
-  const totalDeposit = memDeposits.reduce((s,d)=> s+(Number(d.ভর্তি_ফি)||0)+(Number(d.ভাড়ার_পরিমাণ)||0), 0);
-  const mealCost = rate ? meals.t*rate : null;
-
-  const html = `
-    <div class="member-header">${avatarHtml(m,44)}<div><strong class="serif">${m.নাম}</strong><div class="muted">${BN_MONTHS[month]} ${toBn(year)}</div></div></div>
-    <div class="tiles">
-      <div class="tile blue"><span class="num">${toBn(meals.b)}</span><span class="label">সকাল</span></div>
-      <div class="tile blue"><span class="num">${toBn(meals.l)}</span><span class="label">দুপুর</span></div>
-      <div class="tile blue"><span class="num">${toBn(meals.d)}</span><span class="label">রাত</span></div>
-      <div class="tile"><span class="num">${toBn(meals.t)}</span><span class="label">মোট মিল</span></div>
-      <div class="tile good"><span class="num">${fmtMoney(totalDeposit)}</span><span class="label">মোট জমা</span></div>
-      ${mealCost!==null ? `<div class="tile"><span class="num">${fmtMoney(mealCost)}</span><span class="label">মিল খরচ (রেট অনুযায়ী)</span></div>` : ''}
-    </div>
-    <button class="ghost" id="printMemberReport">প্রিন্ট করুন</button>
-  `;
-  document.getElementById('reportResult').innerHTML = html;
-  document.getElementById('printMemberReport').addEventListener('click', ()=> doPrint(html.replace('<button class="ghost" id="printMemberReport">প্রিন্ট করুন</button>','')));
+function allMembersMealsTotal(month, year){
+  return members.reduce((s,m)=> s + memberMealTotals(m.নাম, month, year).t, 0);
 }
 
-function buildAllReport(month, year){
-  const rows = members.map(m=>{
-    const meals = memberMealTotals(m.নাম, month, year);
-    const memDeposits = deposits.filter(d=> d.সদস্য_আইডি===m.ID && Number(d.ভাড়ার_মাস)===month && Number(d.ভাড়ার_বছর)===year);
-    const totalDeposit = memDeposits.reduce((s,d)=> s+(Number(d.ভর্তি_ফি)||0)+(Number(d.ভাড়ার_পরিমাণ)||0), 0);
-    return {m, meals, totalDeposit};
+function monthlyExpenseFor(month, year){
+  const e = monthlyExpenses.find(x=> Number(x.মাস)===month && Number(x.বছর)===year);
+  return e ? Number(e.মোট_খরচ)||0 : 0;
+}
+
+function getApplicableFee(memberId, month, year){
+  const cutoff = new Date(year, month+1, 0); // ঐ মাসের শেষ দিন
+  const candidates = feeSettings.filter(f=> f.সদস্য_আইডি===memberId && f.তারিখ && new Date(f.তারিখ+'T00:00:00') <= cutoff);
+  if(!candidates.length) return null;
+  candidates.sort((a,b)=> a.তারিখ.localeCompare(b.তারিখ));
+  return candidates[candidates.length-1];
+}
+
+function monthsBetween(startY, startM, endY, endM){
+  const list = [];
+  let y = startY, mo = startM;
+  let guard = 0;
+  while((y < endY || (y===endY && mo<=endM)) && guard < 1200){
+    list.push({month:mo, year:y});
+    mo++; if(mo>11){ mo=0; y++; }
+    guard++;
+  }
+  return list;
+}
+
+function computeMemberDue(memberId, asOfIso){
+  const m = members.find(x=>x.ID===memberId);
+  if(!m) return null;
+  const categories = {}; FEE_CATS.forEach(c=> categories[c.key]=0);
+  const admission = m.তারিখ ? new Date(m.তারিখ+'T00:00:00') : null;
+  const asOf = new Date(asOfIso+'T00:00:00');
+  if(admission && !isNaN(admission) && admission<=asOf){
+    const months = monthsBetween(admission.getFullYear(), admission.getMonth(), asOf.getFullYear(), asOf.getMonth());
+    months.forEach(({month,year})=>{
+      const fee = getApplicableFee(memberId, month, year);
+      if(!fee) return;
+      FEE_CATS.forEach(c=>{
+        if(c.key==='খাবার_বিল') return;
+        categories[c.key] += Number(fee[c.key])||0;
+      });
+      const foodVal = fee['খাবার_বিল'];
+      if(foodVal!=='' && foodVal!=null && foodVal!==undefined){
+        categories['খাবার_বিল'] += Number(foodVal)||0;
+      } else {
+        const totalMeals = allMembersMealsTotal(month,year);
+        const expense = monthlyExpenseFor(month,year);
+        const rate = totalMeals>0 ? expense/totalMeals : 0;
+        const memberMeals = memberMealTotals(m.নাম, month, year).t;
+        categories['খাবার_বিল'] += rate*memberMeals;
+      }
+    });
+  }
+  const totalOwed = FEE_CATS.reduce((s,c)=> s+categories[c.key], 0);
+  const paidDeposits = deposits.filter(d=> d.সদস্য_আইডি===memberId && d.তারিখ && d.তারিখ<=asOfIso);
+  const monthlyPaid = paidDeposits.reduce((s,d)=> s+(Number(d.ভাড়ার_পরিমাণ)||0), 0);
+  const admissionPaid = paidDeposits.reduce((s,d)=> s+(Number(d.ভর্তি_ফি)||0), 0);
+  const netDue = totalOwed - monthlyPaid;
+  const catDue = {};
+  FEE_CATS.forEach(c=>{
+    const allocated = totalOwed>0 ? monthlyPaid*(categories[c.key]/totalOwed) : 0;
+    catDue[c.key] = categories[c.key] - allocated;
   });
-  const tableRows = rows.map(r=>`<tr>
-    <td>${avatarHtml(r.m)} ${r.m.নাম}</td><td>${toBn(r.meals.t)}</td><td class="amount">${fmtMoney(r.totalDeposit)}</td>
-  </tr>`).join('');
+  return { member:m, categories, catDue, totalOwed, monthlyPaid, admissionPaid, netDue };
+}
+
+function buildMemberReport(memberId, asOfIso){
+  const r = computeMemberDue(memberId, asOfIso);
+  if(!r){ alert('সদস্য নির্বাচন করুন।'); return; }
+  const m = r.member;
+  const rows = FEE_CATS.map(c=>`<tr><td>${c.label}</td><td class="amount">${fmtMoney(r.categories[c.key])}</td><td class="amount">${fmtMoney(r.catDue[c.key])}</td></tr>`).join('');
+  const statusLabel = r.netDue>=0 ? 'বকেয়া' : 'অগ্রিম';
+  const statusAmount = Math.abs(r.netDue);
   const html = `
-    <h3 class="serif">${BN_MONTHS[month]} ${toBn(year)} — সকল সদস্যের রিপোর্ট</h3>
-    <div class="table-wrap"><table>
-      <thead><tr><th>সদস্য</th><th>মোট মিল</th><th>মোট জমা</th></tr></thead>
-      <tbody>${tableRows || `<tr><td colspan="3"><div class="empty">কোনো সদস্য নেই।</div></td></tr>`}</tbody>
-    </table></div>
-    <button class="ghost" id="printAllReport">প্রিন্ট করুন</button>
+    <div class="official-print">
+      <h2 class="serif">সদস্য হিসাব বিবরণী</h2>
+      <div class="member-header">${avatarHtml(m,44)}<div><strong>${m.নাম}</strong><div class="muted">${m.মোবাইল} · ভর্তি: ${fmtDate(m.তারিখ)}</div></div></div>
+      <div class="stmt-meta">হিসাবের তারিখ: ${fmtDate(asOfIso)}</div>
+      <table>
+        <tr><th>খাত</th><th>মোট পাওনা</th><th>বকেয়া/অগ্রিম</th></tr>
+        ${rows}
+        <tr><td><strong>সর্বমোট</strong></td><td class="amount"><strong>${fmtMoney(r.totalOwed)}</strong></td><td class="amount"><strong>${fmtMoney(r.netDue)}</strong></td></tr>
+      </table>
+      <p class="muted" style="margin-top:10px;">মোট পরিশোধ (মাসিক ফি বাবদ): ${fmtMoney(r.monthlyPaid)} · ভর্তি ফি পরিশোধ: ${fmtMoney(r.admissionPaid)}</p>
+      <p><strong>সর্বমোট ${statusLabel}: ${fmtMoney(statusAmount)}</strong></p>
+      <div class="sig-row"><div>সদস্যর স্বাক্ষর</div><div>কর্তৃপক্ষের স্বাক্ষর</div></div>
+    </div>
   `;
-  document.getElementById('reportResult').innerHTML = html;
-  document.getElementById('printAllReport').addEventListener('click', ()=> doPrint(html.replace('<button class="ghost" id="printAllReport">প্রিন্ট করুন</button>','')));
+  document.getElementById('reportResult').innerHTML = html + `<button class="ghost" id="printMemberReport" style="margin-top:14px;">প্রিন্ট করুন (অফিসিয়াল ফরমেট)</button>`;
+  document.getElementById('printMemberReport').addEventListener('click', ()=> doPrint(html));
+}
+
+function buildAllReport(asOfIso){
+  const results = members.map(m=> computeMemberDue(m.ID, asOfIso)).filter(Boolean);
+  const tableRows = results.map(r=>{
+    const statusLabel = r.netDue>=0 ? 'বকেয়া' : 'অগ্রিম';
+    return `<tr><td>${avatarHtml(r.member)} ${r.member.নাম}</td><td class="amount">${fmtMoney(r.totalOwed)}</td><td class="amount">${fmtMoney(r.monthlyPaid)}</td><td class="amount">${fmtMoney(Math.abs(r.netDue))} (${statusLabel})</td></tr>`;
+  }).join('');
+  const totalOwedAll = results.reduce((s,r)=>s+r.totalOwed,0);
+  const totalPaidAll = results.reduce((s,r)=>s+r.monthlyPaid,0);
+  const html = `
+    <div class="official-print">
+      <h2 class="serif">সকল সদস্যের হিসাব বিবরণী</h2>
+      <div class="stmt-meta">হিসাবের তারিখ: ${fmtDate(asOfIso)}</div>
+      <table>
+        <tr><th>সদস্য</th><th>মোট পাওনা</th><th>মোট পরিশোধ</th><th>বকেয়া/অগ্রিম</th></tr>
+        ${tableRows || `<tr><td colspan="4">কোনো সদস্য নেই।</td></tr>`}
+        <tr><td><strong>সর্বমোট</strong></td><td class="amount"><strong>${fmtMoney(totalOwedAll)}</strong></td><td class="amount"><strong>${fmtMoney(totalPaidAll)}</strong></td><td class="amount"><strong>${fmtMoney(totalOwedAll-totalPaidAll)}</strong></td></tr>
+      </table>
+    </div>
+  `;
+  document.getElementById('reportResult').innerHTML = html + `<button class="ghost" id="printAllReport" style="margin-top:14px;">প্রিন্ট করুন (অফিসিয়াল ফরমেট)</button>`;
+  document.getElementById('printAllReport').addEventListener('click', ()=> doPrint(html));
 }
 
 loadAll();
@@ -990,10 +1276,17 @@ loadAll();
 পড়তে/লিখতে পারবে, তাই লিংকটি শুধু বিশ্বস্ত মানুষের সাথে শেয়ার করুন।
 
 কোনো ডেটা ভবিষ্যতে গুগল শীটে সরাসরি দেখতে চাইলে, একই স্প্রেডশিটে "Members",
-"Deposits", "MealEntries", "MenuItems" ও "DailyMenu" নামে পাঁচটি শীট (ট্যাব)
-অটোমেটিক তৈরি হয়ে যাবে যখন আপনি অ্যাপ থেকে প্রথম ডেটা যোগ করবেন।
+"Deposits", "MealEntries", "MenuItems", "DailyMenu", "FeeSettings" ও
+"MonthlyExpense" নামে সাতটি শীট (ট্যাব) অটোমেটিক তৈরি হয়ে যাবে যখন আপনি অ্যাপ
+থেকে প্রথম ডেটা যোগ করবেন।
 
 নতুন ফিচার যোগ করার পর আগের Code.gs আপডেট করে আবার Deploy > Manage deployments >
 Edit (পেন্সিল আইকন) > New version দিয়ে পুনরায় ডিপ্লয় করতে ভুলবেন না, নাহলে
-নতুন "মেনু" ও "দৈনিক মেনু তালিকা" ফিচার কাজ করবে না।
+নতুন "ফি নির্ধারণ" ফিচার কাজ করবে না।
+
+হিসাব সংক্রান্ত অনুমান: জমার ফরমে ভাড়া/গ্যাস/বিদ্যুৎ ইত্যাদি খাতভিত্তিক আলাদা
+আলাদা পরিশোধের ঘর নেই — একটাই "মাসিক ভাড়ার পরিমাণ" ঘর আছে যেটাকে মোট মাসিক
+পরিশোধ ধরে সব খাতের পাওনার সাথে অনুপাত হারে (proportionally) ভাগ করে খাতভিত্তিক
+বকেয়া/অগ্রিম দেখানো হয়েছে। প্রতিটি খাতের জন্য আলাদা আলাদা পরিশোধ রেকর্ড রাখতে
+চাইলে জমার ফরম আরও বিস্তারিতভাবে ঢেলে সাজাতে হবে — প্রয়োজন হলে জানাবেন।
 -->

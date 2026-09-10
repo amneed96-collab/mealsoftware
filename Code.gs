@@ -8,11 +8,15 @@ var SHEET_DEPOSITS = 'Deposits';
 var SHEET_MEALS = 'MealEntries';
 var SHEET_MENU = 'MenuItems';
 var SHEET_DAILYMENU = 'DailyMenu';
+var SHEET_FEES = 'FeeSettings';
+var SHEET_EXPENSE = 'MonthlyExpense';
 
 var MEMBER_HEADERS = ['ID','নাম','মোবাইল','ধরন','ক্লাস','তারিখ','ঠিকানা','ছবি'];
 var DEPOSIT_HEADERS = ['ID','সদস্য_আইডি','ভর্তি_ফি','ভাড়ার_মাস','ভাড়ার_বছর','ভাড়ার_পরিমাণ','তারিখ'];
 var MENU_HEADERS = ['ID','নাম','ছবি'];
 var DAILYMENU_HEADERS = ['তারিখ','সকাল','দুপুর','রাত'];
+var FEE_HEADERS = ['ID','সদস্য_আইডি','তারিখ','ভাড়া','গ্যাস_বিল','বিদ্যুৎ_বিল','ময়লা_বিল','আসবাবপত্র_বিল','বাবুর্চি_বিল','খাবার_বিল'];
+var EXPENSE_HEADERS = ['ID','মাস','বছর','মোট_খরচ'];
 
 function getSS(){ return SpreadsheetApp.getActiveSpreadsheet(); }
 
@@ -84,6 +88,8 @@ function doGet(e){
   var mealsSh = getSheet(SHEET_MEALS, ['তারিখ']);
   var menuSh = getSheet(SHEET_MENU, MENU_HEADERS);
   var dailyMenuSh = getSheet(SHEET_DAILYMENU, DAILYMENU_HEADERS);
+  var feesSh = getSheet(SHEET_FEES, FEE_HEADERS);
+  var expenseSh = getSheet(SHEET_EXPENSE, EXPENSE_HEADERS);
 
   if(action === 'getAll'){
     return jsonOut({
@@ -92,7 +98,9 @@ function doGet(e){
       deposits: sheetToObjects(depositsSh),
       meals: getMealsStructured(mealsSh),
       menuItems: sheetToObjects(menuSh),
-      dailyMenus: sheetToObjects(dailyMenuSh)
+      dailyMenus: sheetToObjects(dailyMenuSh),
+      feeSettings: sheetToObjects(feesSh),
+      monthlyExpenses: sheetToObjects(expenseSh)
     });
   }
   return jsonOut({ok:false, error:'unknown action'});
@@ -109,6 +117,8 @@ function doPost(e){
   var mealsSh = getSheet(SHEET_MEALS, ['তারিখ']);
   var menuSh = getSheet(SHEET_MENU, MENU_HEADERS);
   var dailyMenuSh = getSheet(SHEET_DAILYMENU, DAILYMENU_HEADERS);
+  var feesSh = getSheet(SHEET_FEES, FEE_HEADERS);
+  var expenseSh = getSheet(SHEET_EXPENSE, EXPENSE_HEADERS);
 
   try{
     if(action === 'saveMember') return jsonOut(saveRow(membersSh, body.data, MEMBER_HEADERS));
@@ -121,6 +131,10 @@ function doPost(e){
     if(action === 'deleteMenuItem') return jsonOut(deleteRowById(menuSh, body.id));
     if(action === 'saveDailyMenu') return jsonOut(saveDailyMenuRow(dailyMenuSh, body.date, body.values));
     if(action === 'deleteDailyMenu') return jsonOut(deleteRowByDate(dailyMenuSh, body.date));
+    if(action === 'saveFeeSetting') return jsonOut(saveRow(feesSh, body.data, FEE_HEADERS));
+    if(action === 'deleteFeeSetting') return jsonOut(deleteRowById(feesSh, body.id));
+    if(action === 'saveMonthlyExpense') return jsonOut(saveRow(expenseSh, body.data, EXPENSE_HEADERS));
+    if(action === 'deleteMonthlyExpense') return jsonOut(deleteRowById(expenseSh, body.id));
     return jsonOut({ok:false, error:'unknown action'});
   } catch(err){
     return jsonOut({ok:false, error: err.message});
